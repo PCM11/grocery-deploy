@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Grocery Items</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+    <h1>Grocery Inventory</h1>
+
+    <div>
+        <button id="showCreateButton" onclick="showCreate()">Create</button>
+    </div>
+
+    <div>
+        <table class="table table-bordered table-hover" id="itemTable">
+
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Update</th>
+                <th>Delete</th>
+            </tr>
+        </table>
+    </div>
+
+    <div id='createUpdateForm' style="display: none">
+        <h2>
+            <span id="createLabel">Create a</span>
+            <span id="updateLabel">update</span> Grocery item
+        </h2>
+
+        <input type="hidden" id="id" name="id" />
+
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" placeholder="Enter item name" /><br/>
+
+        <label for="category">Category</label>
+        <input type="text" id="category" name="category" placeholder="Enter category" /><br/>
+
+        <label for="price">Price</label>
+        <input type="number" id="price" name="price" placeholder="Enter price" /><br/>
+
+        <span><button id="doCreateButton" onclick="doCreate()">Create</button></span>
+        <span><button id="doUpdateButton" onclick="doUpdate()">Update</button></span>
+    </div>
+
+    <script>
+        function showCreate() {
+            document.getElementById('showCreateButton').style.display = "none";
+            document.getElementById('itemTable').style.display = "none";
+            document.getElementById('createUpdateForm').style.display = "block";
+
+            document.getElementById('createLabel').style.display = "inline";
+            document.getElementById('updateLabel').style.display = "none";
+
+            document.getElementById('doCreateButton').style.display = "block";
+            document.getElementById('doUpdateButton').style.display = "none";
+        }
+
+        function showViewAll() {
+            document.getElementById('showCreateButton').style.display = "block";
+            document.getElementById('itemTable').style.display = "block";
+            document.getElementById('createUpdateForm').style.display = "none";
+        }
+
+        function showUpdate(buttonElement) {
+            document.getElementById('showCreateButton').style.display = "none";
+            document.getElementById('itemTable').style.display = "none";
+            document.getElementById('createUpdateForm').style.display = "block";
+
+            document.getElementById('createLabel').style.display = "none";
+            document.getElementById('updateLabel').style.display = "inline";
+
+            document.getElementById('doCreateButton').style.display = "none";
+            document.getElementById('doUpdateButton').style.display = "block";
+
+            var rowElement = buttonElement.parentNode.parentNode;
+            var item = getItemFromRow(rowElement);
+            populateFormWithItem(item);
+        }
+
+        function doCreate() {
+            var item = {};
+            item.name = document.getElementById('name').value;
+            item.category = document.getElementById('category').value;
+            item.price = parseFloat(document.getElementById('price').value);
+            console.log(JSON.stringify(item));
+            createItemAjax(item);
+        }
+
+        function doUpdate() {
+            var item = getItemFromForm();
+            var rowElement = document.getElementById(item.id);
+            updateItemAjax(item);
+            setItemInRow(rowElement, item);
+            clearForm();
+            showViewAll();
+        }
+
+        function doDelete(button) {
+            var tableElement = document.getElementById('itemTable');
+            var rowElement = button.parentNode.parentNode;
+            var index = rowElement.rowIndex;
+            deleteItemAjax(rowElement.getAttribute("id"));
+            tableElement.deleteRow(index);
+        }
+
+        function addItemToTable(item) {
+            var tableElement = document.getElementById('itemTable');
+            var rowElement = tableElement.insertRow(-1);
+            rowElement.setAttribute('id', item.id);
+
+            rowElement.insertCell(0).innerHTML = item.id;
+            rowElement.insertCell(1).innerHTML = item.name;
+            rowElement.insertCell(2).innerHTML = item.category;
+            rowElement.insertCell(3).innerHTML = item.price;
+            rowElement.insertCell(4).innerHTML = '<button onclick="showUpdate(this)">Update</button>';
+            rowElement.insertCell(5).innerHTML = '<button onclick="doDelete(this)">Delete</button>';
+        }
+
+        function clearForm() {
+            document.getElementById('id').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('category').value = '';
+            document.getElementById('price').value = '';
+        }
+
+        function getItemFromRow(rowElement) {
+            var item = {};
+            item.id = rowElement.getAttribute('id');
+            item.name = rowElement.cells[1].textContent;
+            item.category = rowElement.cells[2].textContent;
+            item.price = parseFloat(rowElement.cells[3].textContent);
+            return item;
+        }
+
+        function setItemInRow(rowElement, item) {
+            rowElement.cells[0].textContent = item.id;
+            rowElement.cells[1].textContent = item.name;
+            rowElement.cells[2].textContent = item.category;
+            rowElement.cells[3].textContent = item.price;
+        }
+
+        function populateFormWithItem(item) {
+            document.getElementById('id').disabled = true;
+            document.getElementById('id').value = item.id;
+            document.getElementById('name').value = item.name;
+            document.getElementById('category').value = item.category;
+            document.getElementById('price').value = item.price;
+            return item;
+        }
+
+        function getItemFromForm() {
+            var item = {};
+            item.id = document.getElementById('id').value;
+            item.name = document.getElementById('name').value;
+            item.category = document.getElementById('category').value;
+            item.price = parseFloat(document.getElementById('price').value);
+            console.log(JSON.stringify(item));
+            return item;
+        }
+
+        function getAllAjax() {
+            $.ajax({
+                url: "/items",
+                method: "GET",
+                dataType: "JSON",
+                success: function(result) {
+                    for (const item of result) {
+                        addItemToTable(item);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log("error: " + status + " msg:" + error);
+                }
+            });
+        }
+
+        function createItemAjax(item) {
+            $.ajax({
+                url: "/items",
+                method: "POST",
+                data: JSON.stringify(item),
+                dataType: "JSON",
+                contentType: "application/json; charset=utf-8",
+                success: function(result) {
+                    item.id = result.id;
+                    addItemToTable(item);
+                    clearForm();
+                    showViewAll();
+                },
+                error: function(xhr, status, error) {
+                    console.log("error: " + status + " msg:" + error);
+                }
+            });
+        }
+
+        function updateItemAjax(item) {
+            $.ajax({
+                url: "/items/" + encodeURIComponent(item.id),
+                method: "PUT",
+                data: JSON.stringify(item),
+                dataType: "JSON",
+                contentType: "application/json; charset=utf-8",
+                success: function(result) {},
+                error: function(xhr, status, error) {
+                    console.log("error: " + status + " msg:" + error);
+                }
+            });
+        }
+
+        function deleteItemAjax(id) {
+            $.ajax({
+                url: "/items/" + encodeURIComponent(id),
+                method: "DELETE",
+                dataType: "JSON",
+                contentType: "application/json; charset=utf-8",
+                success: function(result) {},
+                error: function(xhr, status, error) {
+                    console.log("error: " + status + " msg:" + error);
+                }
+            });
+        }
+
+        // Load items on page load
+        getAllAjax();
+    </script>
+</body>
+</html>
